@@ -3,11 +3,13 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { Box3, PerspectiveCamera, Vector3 } from 'three'
+import { Moon, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { PlanEditor } from '@/components/plan-editor'
 import { SceneWireframe } from '@/components/scene-wireframe'
+import { useTheme } from '@/hooks/use-theme'
 import {
   MAX_LIGHTING_GRID,
   MIN_LIGHTING_GRID,
@@ -216,6 +218,7 @@ function ViewerCameraControls({ room, tables, luminaires, zoomToFitRequest }: Vi
 }
 
 function App() {
+  const { theme, toggle } = useTheme()
   const room = useSceneStore((state) => state.room)
   const tables = useSceneStore((state) => state.tables)
   const luminaires = useSceneStore((state) => state.luminaires)
@@ -299,7 +302,7 @@ function App() {
           <CardContent className="h-[calc(100%-4.25rem)]">
             <div className="relative h-full overflow-hidden rounded-lg border bg-card">
               <Canvas camera={{ position: DEFAULT_CAMERA_POSITION, fov: 50 }}>
-                <color attach="background" args={['#ffffff']} />
+                <color attach="background" args={[theme === 'dark' ? '#1c1c1c' : '#ffffff']} />
                 <ambientLight intensity={0.7} />
                 <SceneWireframe
                   room={room}
@@ -324,8 +327,16 @@ function App() {
         </Card>
 
         <Card className="min-h-[320px]">
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle>Properties</CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggle}
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2 text-sm">

@@ -765,9 +765,10 @@ function cloneDrawables(drawables: Drawable[]) {
 
 type PlanEditorProps = {
   onRoomAssigned?: () => void
+  assignRoomRequest?: number
 }
 
-export function PlanEditor({ onRoomAssigned }: PlanEditorProps) {
+export function PlanEditor({ onRoomAssigned, assignRoomRequest = 0 }: PlanEditorProps) {
   const [tool, setTool] = useState<Tool>('select')
   const [vertices, setVertices] = useState<Vertex[]>([])
   const [segments, setSegments] = useState<Segment[]>([])
@@ -812,6 +813,7 @@ export function PlanEditor({ onRoomAssigned }: PlanEditorProps) {
 
   const svgRef = useRef<SVGSVGElement>(null)
   const pendingFaceMetaByPolygonRef = useRef<Record<string, FaceMeta> | null>(null)
+  const assignRoomRequestRef = useRef(assignRoomRequest)
 
   const drawablesRef = useRef<Drawable[]>(drawables)
   const layersRef = useRef<DrawingLayer[]>(layers)
@@ -1673,6 +1675,18 @@ export function PlanEditor({ onRoomAssigned }: PlanEditorProps) {
     setMessage('')
   }
 
+  useEffect(() => {
+    if (assignRoomRequest === assignRoomRequestRef.current) return
+    assignRoomRequestRef.current = assignRoomRequest
+
+    if (!selectedFace) {
+      setMessage('Выберите замкнутый контур в 2D, затем нажмите Assign Selected Face As Room.')
+      return
+    }
+
+    assignFaceRole('room')
+  }, [assignRoomRequest, selectedFace])
+
   const updateFaceHeight = (field: 'ceilingHeight' | 'tableHeight', value: number) => {
     if (!selectedFace || Number.isNaN(value)) return
 
@@ -1965,19 +1979,19 @@ export function PlanEditor({ onRoomAssigned }: PlanEditorProps) {
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <Button variant={tool === 'select' ? 'default' : 'outline'} onClick={() => setTool('select')}>
-            Select
+            Move
           </Button>
           <Button variant={tool === 'segment' ? 'default' : 'outline'} onClick={() => setTool('segment')}>
-            Add Segment
+            Wall
           </Button>
           <Button
             variant={tool === 'luminaire' ? 'default' : 'outline'}
             onClick={() => setTool('luminaire')}
           >
-            Add Luminaire
+            Light
           </Button>
           <Button variant={tool === 'brush' ? 'default' : 'outline'} onClick={() => setTool('brush')}>
-            Brush
+            Pencil
           </Button>
           <Button variant={tool === 'eraser' ? 'default' : 'outline'} onClick={() => setTool('eraser')}>
             Eraser
@@ -2011,6 +2025,21 @@ export function PlanEditor({ onRoomAssigned }: PlanEditorProps) {
         </div>
 
         <div className="grid gap-2 rounded-lg border bg-card p-3 md:grid-cols-2">
+          <div className="space-y-1 md:col-span-2">
+            <span className="text-xs text-muted-foreground">Quick colors</span>
+            <div className="flex flex-wrap gap-2">
+              {['#0f172a', '#1d4ed8', '#dc2626', '#15803d', '#a16207', '#7c3aed'].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  className={`h-7 w-7 rounded border-2 ${brushColor === color ? 'border-primary' : 'border-border'}`}
+                  style={{ backgroundColor: color }}
+                  onClick={() => setBrushColor(color)}
+                  aria-label={`Select color ${color}`}
+                />
+              ))}
+            </div>
+          </div>
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">Brush color</span>
             <input
@@ -2031,6 +2060,18 @@ export function PlanEditor({ onRoomAssigned }: PlanEditorProps) {
               onChange={(event) => setBrushSize(Number(event.target.value))}
             />
             <div className="text-[11px] text-muted-foreground">{brushSize.toFixed(2)} m</div>
+            <div className="mt-1 flex gap-1">
+              {[0.08, 0.16, 0.28].map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  className={`rounded border px-2 py-0.5 text-[11px] ${Math.abs(brushSize - size) < 0.01 ? 'border-primary text-primary' : 'border-border text-muted-foreground'}`}
+                  onClick={() => setBrushSize(size)}
+                >
+                  {size.toFixed(2)}
+                </button>
+              ))}
+            </div>
           </label>
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">Brush opacity</span>
@@ -2454,14 +2495,17 @@ export function PlanEditor({ onRoomAssigned }: PlanEditorProps) {
               <span className="text-xs text-muted-foreground">Face role</span>
               <select
                 className="w-full rounded-md border px-2 py-1 text-sm"
-                value={faceMeta[selectedFace.key]?.role ?? ''}
-                onChange={(event) => assignFaceRole(event.target.value as FaceRole | '')}
+                value={(faceMeta[selectedFace.key]?.role ?? '') === 'room' ? '' : (faceMeta[selectedFace.key]?.role ?? '')}
+                onChange={(event) => assignFaceRole(event.target.value as 'table' | '')}
               >
                 <option value="">None</option>
-                <option value="room">room</option>
                 <option value="table">table</option>
               </select>
             </label>
+
+            <div className="text-xs text-muted-foreground">
+              Room role is assigned from 3D Viewer button: Assign Selected Face As Room.
+            </div>
 
             {(faceMeta[selectedFace.key]?.role ?? '') === 'room' ? (
               <label className="block space-y-1">

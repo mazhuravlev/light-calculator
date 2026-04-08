@@ -26,6 +26,7 @@ const VIEWER_CAMERA_STORAGE_KEY = 'light:viewer-camera:v1'
 const DEFAULT_CAMERA_POSITION: [number, number, number] = [7, 6, 7]
 const DEFAULT_CAMERA_TARGET: [number, number, number] = [0, 0, 0]
 const LIGHTING_DEBOUNCE_MS = 350
+const PANEL_MIN_WIDTH_PCT = [25, 25, 18] as const
 
 const HEATMAP_LOW_COLOR = '#1d4ed8'
 const HEATMAP_HIGH_COLOR = '#dc2626'
@@ -224,11 +225,15 @@ function App() {
   const luminaires = useSceneStore((state) => state.luminaires)
   const resetScene = useSceneStore((state) => state.resetScene)
   const [zoomToFitRequest, setZoomToFitRequest] = useState(0)
+  const [assignRoomRequest, setAssignRoomRequest] = useState(0)
   const [lightingGridX, setLightingGridX] = useState(DEFAULT_LIGHTING_GRID_X)
   const [lightingGridY, setLightingGridY] = useState(DEFAULT_LIGHTING_GRID_Y)
   const [autoRecalculate, setAutoRecalculate] = useState(true)
   const [lightingReport, setLightingReport] = useState<LightingReport | null>(null)
   const [lightingMessage, setLightingMessage] = useState<string>('Нажмите Recalculate для первого расчёта.')
+  const [panelPercents, setPanelPercents] = useState<[number, number, number]>([42, 33, 25])
+  const layoutRef = useRef<HTMLElement>(null)
+  const resizeSplitterRef = useRef<0 | 1 | null>(null)
 
   const recalculateLighting = useCallback(() => {
     const result = calculateLighting(
@@ -283,21 +288,77 @@ function App() {
     return () => window.clearTimeout(timeoutId)
   }, [autoRecalculate, recalculateLighting])
 
+  useEffect(() => {
+    const onPointerMove = (event: PointerEvent) => {
+      const splitter = resizeSplitterRef.current
+      if (splitter === null) return
+      const layout = layoutRef.current
+      if (!layout) return
+
+      const rect = layout.getBoundingClientRect()
+      if (rect.width <= 0) return
+
+      const xPct = ((event.clientX - rect.left) / rect.width) * 100
+      const [left, middle, right] = panelPercents
+      const [leftMin, middleMin, rightMin] = PANEL_MIN_WIDTH_PCT
+
+      if (splitter === 0) {
+        const nextLeft = Math.max(leftMin, Math.min(xPct, 100 - middleMin - rightMin))
+        const nextMiddle = 100 - right - nextLeft
+        setPanelPercents([nextLeft, nextMiddle, right])
+      } else {
+        const boundary = left + middle
+        const delta = xPct - boundary
+        const nextMiddle = Math.max(middleMin, Math.min(middle + delta, 100 - left - rightMin))
+        const nextRight = 100 - left - nextMiddle
+        setPanelPercents([left, nextMiddle, nextRight])
+      }
+    }
+
+    const onPointerUp = () => {
+      resizeSplitterRef.current = null
+    }
+
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+  }, [panelPercents])
+
+  const startResize = (splitter: 0 | 1) => {
+    resizeSplitterRef.current = splitter
+  }
+
   return (
     <main className="h-screen bg-muted/30 p-4">
-      <section className="grid h-full gap-4 lg:grid-cols-[1fr_1fr_320px]">
-        <Card className="min-h-[320px]">
+      <section ref={layoutRef} className="flex h-full flex-col gap-4 lg:flex-row lg:gap-2">
+        <Card className="min-h-[320px] w-full lg:min-w-[340px]" style={{ flexBasis: `${panelPercents[0]}%` }}>
           <CardHeader>
             <CardTitle>2D Plan Editor</CardTitle>
           </CardHeader>
           <CardContent className="h-[calc(100%-4.25rem)]">
-            <PlanEditor onRoomAssigned={() => setZoomToFitRequest((request) => request + 1)} />
+            <PlanEditor
+              onRoomAssigned={() => setZoomToFitRequest((request) => request + 1)}
+              assignRoomRequest={assignRoomRequest}
+            />
           </CardContent>
         </Card>
 
-        <Card className="min-h-[320px]">
-          <CardHeader>
+        <div
+          className="hidden w-2 cursor-col-resize rounded bg-border/70 transition hover:bg-primary/60 lg:block"
+          role="separator"
+          aria-label="Resize between 2D and 3D panels"
+          onPointerDown={() => startResize(0)}
+        />
+
+        <Card className="min-h-[320px] w-full lg:min-w-[340px]" style={{ flexBasis: `${panelPercents[1]}%` }}>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle>3D Viewer (Wireframe)</CardTitle>
+            <Button variant="outline" size="sm" onClick={() => setAssignRoomRequest((value) => value + 1)}>
+              Assign Selected Face As Room
+            </Button>
           </CardHeader>
           <CardContent className="h-[calc(100%-4.25rem)]">
             <div className="relative h-full overflow-hidden rounded-lg border bg-card">
@@ -319,14 +380,21 @@ function App() {
               </Canvas>
               {!room ? (
                 <div className="pointer-events-none absolute left-3 top-3 rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow-sm">
-                  Назначьте роль <span className="font-medium">room</span> замкнутому контуру в 2D
+                  Выберите замкнутый контур в 2D и нажмите кнопку Assign Selected Face As Room
                 </div>
               ) : null}
             </div>
           </CardContent>
         </Card>
 
-        <Card className="min-h-[320px]">
+        <div
+          className="hidden w-2 cursor-col-resize rounded bg-border/70 transition hover:bg-primary/60 lg:block"
+          role="separator"
+          aria-label="Resize between 3D and Properties panels"
+          onPointerDown={() => startResize(1)}
+        />
+
+        <Card className="min-h-[320px] w-full lg:min-w-[300px]" style={{ flexBasis: `${panelPercents[2]}%` }}>
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle>Properties</CardTitle>
             <Button

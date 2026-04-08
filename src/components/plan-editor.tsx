@@ -1979,19 +1979,19 @@ export function PlanEditor({ onRoomAssigned, assignRoomRequest = 0 }: PlanEditor
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           <Button variant={tool === 'select' ? 'default' : 'outline'} onClick={() => setTool('select')}>
-            Move
+            Select
           </Button>
           <Button variant={tool === 'segment' ? 'default' : 'outline'} onClick={() => setTool('segment')}>
-            Wall
+            Add Segment
           </Button>
           <Button
             variant={tool === 'luminaire' ? 'default' : 'outline'}
             onClick={() => setTool('luminaire')}
           >
-            Light
+            Add Luminaire
           </Button>
           <Button variant={tool === 'brush' ? 'default' : 'outline'} onClick={() => setTool('brush')}>
-            Pencil
+            Brush
           </Button>
           <Button variant={tool === 'eraser' ? 'default' : 'outline'} onClick={() => setTool('eraser')}>
             Eraser
@@ -2025,21 +2025,6 @@ export function PlanEditor({ onRoomAssigned, assignRoomRequest = 0 }: PlanEditor
         </div>
 
         <div className="grid gap-2 rounded-lg border bg-card p-3 md:grid-cols-2">
-          <div className="space-y-1 md:col-span-2">
-            <span className="text-xs text-muted-foreground">Quick colors</span>
-            <div className="flex flex-wrap gap-2">
-              {['#0f172a', '#1d4ed8', '#dc2626', '#15803d', '#a16207', '#7c3aed'].map((color) => (
-                <button
-                  key={color}
-                  type="button"
-                  className={`h-7 w-7 rounded border-2 ${brushColor === color ? 'border-primary' : 'border-border'}`}
-                  style={{ backgroundColor: color }}
-                  onClick={() => setBrushColor(color)}
-                  aria-label={`Select color ${color}`}
-                />
-              ))}
-            </div>
-          </div>
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">Brush color</span>
             <input
@@ -2060,18 +2045,6 @@ export function PlanEditor({ onRoomAssigned, assignRoomRequest = 0 }: PlanEditor
               onChange={(event) => setBrushSize(Number(event.target.value))}
             />
             <div className="text-[11px] text-muted-foreground">{brushSize.toFixed(2)} m</div>
-            <div className="mt-1 flex gap-1">
-              {[0.08, 0.16, 0.28].map((size) => (
-                <button
-                  key={size}
-                  type="button"
-                  className={`rounded border px-2 py-0.5 text-[11px] ${Math.abs(brushSize - size) < 0.01 ? 'border-primary text-primary' : 'border-border text-muted-foreground'}`}
-                  onClick={() => setBrushSize(size)}
-                >
-                  {size.toFixed(2)}
-                </button>
-              ))}
-            </div>
           </label>
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">Brush opacity</span>
